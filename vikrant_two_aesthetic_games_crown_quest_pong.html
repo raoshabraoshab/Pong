@@ -1,0 +1,159 @@
+<!--
+Two ready-to-deploy single-file games for GitHub Pages.
+Files contained below (copy each into its own .html file):
+  1) crown-quest.html  -> Collect crowns, aesthetic canvas game
+  2) pong-royale.html  -> Aesthetic Pong 2.0 (local 2-player on same keyboard)
+
+How to publish on GitHub Pages (quick):
+ 1. Create a new GitHub repository (e.g., vikrant-games).
+ 2. Add the two .html files to the repo (Upload or push via git).
+ 3. In repo Settings -> Pages, choose branch `main` and folder `/` (root) -> Save.
+ 4. Visit https://<your-username>.github.io/<repo-name>/crown-quest.html (and pong-royale.html).
+
+Enjoy! ✨
+-->
+
+<!-- ===== crown-quest.html ===== -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Crown Quest — Vikrant</title>
+  <style>
+    html,body{height:100%;margin:0;background:#050505;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto}
+    .wrap{height:100%;display:flex;align-items:center;justify-content:center}
+    canvas{border-radius:18px;box-shadow:0 20px 60px rgba(0,0,0,.7),0 0 40px rgba(255,200,50,.06)}
+    .hud{position:fixed;left:18px;top:18px;color:#ffd97a;font-weight:600}
+    .btn{position:fixed;right:18px;top:18px;background:linear-gradient(180deg,#ffd97a,#f2c85a);border:none;padding:8px 12px;border-radius:10px;font-weight:700}
+    .small{font-size:13px;color:#ddd;margin-top:6px}
+  </style>
+</head>
+<body>
+  <div class="hud">Crown Quest — Score: <span id="score">0</span><div class="small">Use ← → or A D to move</div></div>
+  <button class="btn" id="restart">Restart</button>
+  <div class="wrap"><canvas id="game" width="900" height="600"></canvas></div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  let left=false,right=false,score=0,gameOver=false;
+
+  const player = {x:W/2,y:H-80,r:20,v:6};
+  class Crown{constructor(){this.reset()} reset(){this.x=Math.random()*(W-60)+30;this.y=-30;this.r=12;this.v=1.2+Math.random()*2;this.angle=0} update(dt){this.y+=this.v*dt;this.angle+=0.06} draw(){ctx.save();ctx.translate(this.x,this.y);ctx.rotate(Math.sin(this.angle)*0.2);
+      // simple crown shape
+      ctx.fillStyle='gold';ctx.beginPath();ctx.moveTo(-12,6);ctx.lineTo(-8,-8);ctx.lineTo(0,2);ctx.lineTo(8,-8);ctx.lineTo(12,6);ctx.closePath();ctx.fill();ctx.restore();}
+  }
+  const crowns=[]; for(let i=0;i<6;i++) crowns.push(new Crown());
+
+  function drawBG(t){ const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,'#050205'); g.addColorStop(1,'#070814'); ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+    // subtle stars
+    for(let i=0;i<60;i++){ let x=(Math.sin((i+ t*0.0007)*7.7)+1)/2*W; let y=(i*11)%H; ctx.fillStyle='rgba(255,240,210,'+ (0.025+Math.sin(i+t*0.001)*0.02)+')'; ctx.fillRect((x+(i*13)%40)%W,y,1,1);} }
+
+  let last=performance.now();
+  function loop(now){ const dt=(now-last)/16.666; last=now; if(gameOver){ draw(); drawGameOver(); return; }
+    update(dt); draw(now); requestAnimationFrame(loop);} 
+
+  function update(dt){ if(left) player.x-=player.v*dt; if(right) player.x+=player.v*dt; player.x=Math.max(24,Math.min(W-24,player.x));
+    for(let c of crowns){ c.update(dt); if(c.y>H+40) c.reset(); // missed
+      const dx=c.x-player.x, dy=c.y-player.y; const dist=Math.hypot(dx,dy);
+      if(dist < c.r + player.r){ score+=1; document.getElementById('score').textContent=score; c.reset(); // small speed boost
+        for(let cc of crowns) cc.v *= 1.01; if(score%10===0){ player.v += 0.15; }} }
+    // lose if too many missed? here just cap speed
+    if(player.v>12) player.v=12; }
+
+  function draw(now){ drawBG(now); // player orb
+    // glow
+    ctx.beginPath(); ctx.fillStyle='rgba(255,215,90,0.06)'; ctx.arc(player.x,player.y,70,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.fillStyle='#ffd97a'; ctx.arc(player.x,player.y,player.r,0,Math.PI*2); ctx.fill();
+    // particle crown trails
+    for(let c of crowns) c.draw();
+    // score shimmer
+    ctx.fillStyle='rgba(255,255,255,0.02)'; ctx.fillRect(0,0,W,H);
+  }
+
+  function drawGameOver(){ ctx.fillStyle='rgba(0,0,0,0.6)'; ctx.fillRect(0,0,W,H); ctx.fillStyle='#ffd97a'; ctx.font='36px serif'; ctx.textAlign='center'; ctx.fillText('Crown Quest — Royal Run Ended',W/2,H/2-10); ctx.font='18px sans-serif'; ctx.fillText('Refresh or press Restart',W/2,H/2+30); }
+
+  addEventListener('keydown',e=>{ if(e.key==='ArrowLeft'||e.key==='a'||e.key==='A') left=true; if(e.key==='ArrowRight'||e.key==='d'||e.key==='D') right=true; if(e.key===' '&&gameOver){ reset(); }});
+  addEventListener('keyup',e=>{ if(e.key==='ArrowLeft'||e.key==='a'||e.key==='A') left=false; if(e.key==='ArrowRight'||e.key==='d'||e.key==='D') right=false; });
+  document.getElementById('restart').addEventListener('click',reset);
+  function reset(){ score=0; player.x=W/2; player.v=6; for(let c of crowns) c.reset(); gameOver=false; document.getElementById('score').textContent=score }
+
+  // auto-end after 90 seconds for a session or keep unlimited. Optional: end if score<0; (not used)
+  requestAnimationFrame(loop);
+})();
+</script>
+
+<!-- ===== pong-royale.html ===== -->
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Pong Royale — Vikrant</title>
+  <style>
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,#020204,#05060a);font-family:Inter,system-ui}
+    .wrap{height:100%;display:flex;align-items:center;justify-content:center}
+    canvas{width:98vw;max-width:900px;height:60vh;max-height:640px;border-radius:12px;box-shadow:0 30px 80px rgba(0,0,0,.6)}
+    .topbar{position:fixed;top:14px;left:16px;color:#ffd97a;font-weight:700}
+    .controls{position:fixed;top:14px;right:16px;color:#ddd}
+  </style>
+</head>
+<body>
+  <div class="topbar">Pong Royale — First to 7</div>
+  <div class="controls small">W/S — Left | ↑/↓ — Right</div>
+  <div class="wrap"><canvas id="pong" width="900" height="640"></canvas></div>
+<script>
+(() => {
+  const c=document.getElementById('pong'), ctx=c.getContext('2d'); const W=c.width, H=c.height;
+  const padH=120, padW=14, speed=7;
+  const left = {x:40,y:H/2-padH/2,w:padW,h:padH,vy:0,score:0};
+  const right = {x:W-40-padW,y:H/2-padH/2,w:padW,h:padH,vy:0,score:0};
+  const ball = {x:W/2,y:H/2,r:10,vx:6*(Math.random()>0.5?1:-1),vy:3.5*(Math.random()>0.5?1:-1)};
+  let upL=false,downL=false,upR=false,downR=false;
+
+  function resetBall(side){ ball.x=W/2; ball.y=H/2; ball.vx = 6*(side?-1:1); ball.vy = (Math.random()*6-3); }
+  function update(){ if(upL) left.y-=speed; if(downL) left.y+=speed; if(upR) right.y-=speed; if(downR) right.y+=speed; left.y=Math.max(10,Math.min(H-left.h-10,left.y)); right.y=Math.max(10,Math.min(H-right.h-10,right.y));
+    ball.x += ball.vx; ball.y += ball.vy; // collision top/bottom
+    if(ball.y<ball.r || ball.y>H-ball.r) ball.vy *= -1;
+    // left paddle
+    if(ball.x - ball.r < left.x + left.w && ball.y > left.y && ball.y < left.y + left.h){ ball.x = left.x + left.w + ball.r; ball.vx *= -1.05; ball.vy += ( (ball.y - (left.y+left.h/2))/20 ); }
+    if(ball.x + ball.r > right.x && ball.y > right.y && ball.y < right.y + right.h){ ball.x = right.x - ball.r; ball.vx *= -1.05; ball.vy += ( (ball.y - (right.y+right.h/2))/20 ); }
+    // scores
+    if(ball.x < -50){ right.score++; resetBall(1); }
+    if(ball.x > W+50){ left.score++; resetBall(0); }
+    if(left.score>=7||right.score>=7) { ball.vx=0; ball.vy=0; }
+  }
+
+  function draw(){ // bg
+    const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,'#040406'); g.addColorStop(1,'#06060b'); ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+    // centerline
+    ctx.fillStyle='rgba(255,209,122,0.06)'; for(let i=0;i<H;i+=30) ctx.fillRect(W/2-2,i,4,18);
+    // paddles
+    drawPad(left); drawPad(right);
+    // ball glow
+    ctx.beginPath(); ctx.fillStyle='rgba(255,215,90,0.08)'; ctx.arc(ball.x,ball.y,40,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.fillStyle='#ffd97a'; ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2); ctx.fill();
+    // scores
+    ctx.fillStyle='#ffd97a'; ctx.font='48px serif'; ctx.textAlign='center'; ctx.fillText(left.score, W/2-60,80); ctx.fillText(right.score, W/2+60,80);
+    // title
+    ctx.fillStyle='rgba(255,255,255,0.06)'; ctx.font='14px sans-serif'; ctx.fillText('Pong Royale — Vikrant', W/2, H-18);
+  }
+  function drawPad(p){ // glow
+    ctx.beginPath(); ctx.fillStyle='rgba(255,215,90,0.06)'; ctx.roundRect(p.x-12,p.y-12,p.w+24,p.h+24,12); ctx.fill();
+    ctx.fillStyle='#ffd97a'; ctx.fillRect(p.x,p.y,p.w,p.h);
+  }
+  // polyfill for roundRect
+  CanvasRenderingContext2D.prototype.roundRect = CanvasRenderingContext2D.prototype.roundRect || function(x,y,w,h,r){ if(typeof r==='undefined') r=8; this.beginPath(); this.moveTo(x+r,y); this.arcTo(x+w,y,x+w,y+h,r); this.arcTo(x+w,y+h,x,y+h,r); this.arcTo(x,y+h,x,y,r); this.arcTo(x,y,x+w,y,r); this.closePath(); }
+
+  function loop(){ update(); draw(); requestAnimationFrame(loop); }
+  addEventListener('keydown',e=>{ if(e.key==='w') upL=true; if(e.key==='s') downL=true; if(e.key==='ArrowUp') upR=true; if(e.key==='ArrowDown') downR=true; });
+  addEventListener('keyup',e=>{ if(e.key==='w') upL=false; if(e.key==='s') downL=false; if(e.key==='ArrowUp') upR=false; if(e.key==='ArrowDown') downR=false; });
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
